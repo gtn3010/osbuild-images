@@ -243,7 +243,7 @@ func WaitUntilImportSnapshotTaskCompletedWithContext(c *ec2.EC2, ctx aws.Context
 // The caller can also specify the name of the role used to do the import.
 // If nil is given, the default one from the SDK is used (vmimport).
 // Returns the image ID and the snapshot ID.
-func (a *AWS) Register(name, bucket, key string, shareWith []string, rpmArch string, bootMode, importRole *string) (*string, *string, error) {
+func (a *AWS) Register(name, bucket, key string, shareWith []string, rpmArch string, bootMode, importRole *string, encrypted bool, kmsKey string) (*string, *string, error) {
 	rpmArchToEC2Arch := map[string]string{
 		"x86_64":  "x86_64",
 		"aarch64": "arm64",
@@ -262,18 +262,23 @@ func (a *AWS) Register(name, bucket, key string, shareWith []string, rpmArch str
 
 	logrus.Infof("[AWS] 📥 Importing snapshot from image: %s/%s", bucket, key)
 	snapshotDescription := fmt.Sprintf("Image Builder AWS Import of %s", name)
-	importTaskOutput, err := a.ec2.ImportSnapshot(
-		&ec2.ImportSnapshotInput{
-			Description: aws.String(snapshotDescription),
-			DiskContainer: &ec2.SnapshotDiskContainer{
-				UserBucket: &ec2.UserBucket{
-					S3Bucket: aws.String(bucket),
-					S3Key:    aws.String(key),
-				},
+	importTaskInput := &ec2.ImportSnapshotInput{
+		Description: aws.String(snapshotDescription),
+		DiskContainer: &ec2.SnapshotDiskContainer{
+			UserBucket: &ec2.UserBucket{
+				S3Bucket: aws.String(bucket),
+				S3Key:    aws.String(key),
 			},
-			RoleName: importRole,
 		},
-	)
+		RoleName: importRole,
+	}
+	if encrypted {
+		importTaskInput.Encrypted = aws.Bool(true)
+		if kmsKey != "" {
+			importTaskInput.KmsKeyId = aws.String(kmsKey)
+		}
+	}
+	importTaskOutput, err := a.ec2.ImportSnapshot(importTaskInput)
 	if err != nil {
 		logrus.Warnf("[AWS] error importing snapshot: %s", err)
 		return nil, nil, err
