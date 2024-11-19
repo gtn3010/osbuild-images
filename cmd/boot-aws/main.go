@@ -218,7 +218,16 @@ func doSetup(a *awscloud.AWS, filename string, flags *pflag.FlagSet, res *resour
 		return err
 	}
 
-	ami, snapshot, err := a.Register(imageName, bucketName, keyName, nil, arch, bootMode, importRole)
+	encrypted, err := flags.GetBool("encrypt")
+	if err != nil {
+		return err
+	}
+	kmsKey, err := flags.GetString("ksmKey")
+	if err != nil {
+		return err
+	}
+
+	ami, snapshot, err := a.Register(imageName, bucketName, keyName, nil, arch, bootMode, importRole, encrypted, kmsKey)
 	if err != nil {
 		return fmt.Errorf("Register(): %s", err.Error())
 	}
@@ -494,6 +503,8 @@ func setupCLI() *cobra.Command {
 	rootFlags.String("username", "", "name of the user to create on the system")
 	rootFlags.String("ssh-pubkey", "", "path to user's public ssh key")
 	rootFlags.String("ssh-privkey", "", "path to user's private ssh key")
+	rootFlags.String("kms", "", "non-default KMS key for encrypting snapshot (if enable encryption), support following formats: Key ID, alias, arn")
+	rootFlags.Bool("encrypt", false, "enable encryption for AMI")
 
 	exitCheck(rootCmd.MarkPersistentFlagRequired("access-key-id"))
 	exitCheck(rootCmd.MarkPersistentFlagRequired("secret-access-key"))
