@@ -245,7 +245,7 @@ func WaitUntilImportSnapshotTaskCompletedWithContext(c *ec2.EC2, ctx aws.Context
 // Returns the image ID and the snapshot ID.
 //
 // XXX: make this return (string, string, error) instead of pointers
-func (a *AWS) Register(name, bucket, key string, shareWith []string, rpmArch string, bootMode, importRole *string, encrypted bool, kmsKey string) (*string, *string, error) {
+func (a *AWS) Register(name, bucket, key string, shareWith []string, rpmArch string, bootMode, roleImport *string, encrypted bool, kmsKey string) (*string, *string, error) {
 	rpmArchToEC2Arch := map[string]string{
 		"x86_64":  "x86_64",
 		"aarch64": "arm64",
@@ -272,7 +272,7 @@ func (a *AWS) Register(name, bucket, key string, shareWith []string, rpmArch str
 				S3Key:    aws.String(key),
 			},
 		},
-		RoleName: importRole,
+		RoleName: roleImport,
 	}
 	if encrypted {
 		importTaskInput.Encrypted = aws.Bool(true)

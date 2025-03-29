@@ -25,6 +25,9 @@ type awsUploader struct {
 	imageName  string
 	targetArch string
 	bootMode   *string
+	roleImport *string
+	encrypted  bool
+	kmsKey     string
 }
 
 type UploaderOptions struct {
@@ -56,7 +59,7 @@ type awsClient interface {
 	Buckets() ([]string, error)
 	CheckBucketPermission(string, S3Permission) (bool, error)
 	UploadFromReader(io.Reader, string, string) (*s3manager.UploadOutput, error)
-	Register(name, bucket, key string, shareWith []string, rpmArch string, bootMode, importRole *string) (*string, *string, error)
+	Register(name, bucket, key string, shareWith []string, rpmArch string, bootMode, importRole *string, encrypted bool, kmsKey string) (*string, *string, error)
 	DeleteObject(string, string) error
 }
 
@@ -142,7 +145,7 @@ func (au *awsUploader) UploadAndRegister(r io.Reader, status io.Writer) (err err
 	}
 
 	fmt.Fprintf(status, "Registering AMI %s\n", au.imageName)
-	ami, snapshot, err := au.client.Register(au.imageName, au.bucketName, keyName, nil, au.targetArch, au.bootMode, nil)
+	ami, snapshot, err := au.client.Register(au.imageName, au.bucketName, keyName, nil, au.targetArch, au.bootMode, au.roleImport, au.encrypted, au.kmsKey)
 	if err != nil {
 		return err
 	}
