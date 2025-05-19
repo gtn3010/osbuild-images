@@ -42,6 +42,7 @@ type BootcDiskImage struct {
 	SELinux string
 
 	OpenSCAPRemediationConfig *oscap.RemediationConfig
+	SELinuxConfig string
 }
 
 func NewBootcDiskImage(container container.SourceSpec) *BootcDiskImage {
@@ -73,6 +74,7 @@ func (img *BootcDiskImage) InstantiateManifestFromContainers(m *manifest.Manifes
 	rawImage.SELinux = img.SELinux
 	rawImage.MountUnits = true // always use mount units for bootc disk images
 	rawImage.OpenSCAPRemediationConfig = img.OpenSCAPRemediationConfig
+	rawImage.SELinuxConfig = img.SELinuxConfig
 
 	// In BIB, we export multiple images from the same pipeline so we use the
 	// filename as the basename for each export and set the extensions based on

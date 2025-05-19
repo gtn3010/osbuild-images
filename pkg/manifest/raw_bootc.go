@@ -51,6 +51,7 @@ type RawBootcImage struct {
 	MountUnits bool
 
 	OpenSCAPRemediationConfig *oscap.RemediationConfig
+	SELinuxConfig string
 }
 
 func (p RawBootcImage) Filename() string {
@@ -254,6 +255,24 @@ func (p *RawBootcImage) serialize() osbuild.Pipeline {
 		selinuxStage.Mounts = mounts
 		selinuxStage.Devices = devices
 		pipeline.AddStage(selinuxStage)
+	}
+
+	if p.SELinuxConfig != "" {
+		seLinuxConfOpts := &osbuild.SELinuxConfigStageOptions{}
+		switch p.SELinuxConfig {
+		case "enforcing":
+			seLinuxConfOpts.State = osbuild.SELinuxStateEnforcing
+		case "permissive":
+			seLinuxConfOpts.State = osbuild.SELinuxStatePermissive
+		case "disabled":
+			seLinuxConfOpts.State = osbuild.SELinuxStateDisabled
+		default:
+			seLinuxConfOpts.State = osbuild.SELinuxStateEnforcing
+		}
+		seLinuxConfigStage := osbuild.NewSELinuxConfigStage(seLinuxConfOpts)
+		seLinuxConfigStage.Mounts = mounts
+		seLinuxConfigStage.Devices = devices
+		pipeline.AddStage(seLinuxConfigStage)
 	}
 
 	return pipeline
