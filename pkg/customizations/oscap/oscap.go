@@ -55,6 +55,7 @@ type RemediationConfig struct {
 	ProfileID          string
 	CompressionEnabled bool
 	TailoringConfig    *TailoringConfig
+	CustomRemediateScriptPath string
 }
 
 type TailoringConfig struct {
@@ -110,6 +111,7 @@ func NewConfigs(oscapConfig blueprint.OpenSCAPCustomization, defaultDatastream *
 		Datastream:         datastream,
 		ProfileID:          oscapConfig.ProfileID,
 		CompressionEnabled: true,
+		CustomRemediateScriptPath: oscapConfig.CustomRemediateScriptPath,
 	}
 
 	switch {

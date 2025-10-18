@@ -15,6 +15,7 @@ import (
 	"github.com/osbuild/images/pkg/customizations/anaconda"
 	"github.com/osbuild/images/pkg/customizations/ignition"
 	"github.com/osbuild/images/pkg/customizations/kickstart"
+	"github.com/osbuild/images/pkg/customizations/oscap"
 	"github.com/osbuild/images/pkg/customizations/users"
 	"github.com/osbuild/images/pkg/datasizes"
 	"github.com/osbuild/images/pkg/disk"
@@ -278,6 +279,18 @@ func (t *bootcImageType) manifestForDisk(bp *blueprint.Blueprint, options distro
 			img.OSCustomizations.Ignition = ignition.FirstbootOptionsFromBP(*bpIgnitionCustomization.FirstBoot)
 		}
 	}
+
+	osc := customizations.GetOpenSCAP()
+	if osc != nil {
+		defaultOscapDS := oscap.DefaultRHEL9Datastream(true)
+		img.OpenSCAPRemediationConfig, err = oscap.NewConfigs(*osc, &defaultOscapDS)
+		if err != nil {
+			fmt.Println("Error parsing config oscap with: ", err)
+			img.OpenSCAPRemediationConfig = nil
+		}
+	}
+
+	img.SELinuxStatus = bp.Customizations.SELinuxStatus
 
 	mf := manifest.New()
 	mf.Distro = manifest.DISTRO_FEDORA
