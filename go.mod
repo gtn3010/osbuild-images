@@ -50,6 +50,8 @@ require (
 	libvirt.org/go/libvirt v1.11006.0
 )
 
+replace github.com/osbuild/blueprint => /blueprint
+
 require (
 	cel.dev/expr v0.24.0 // indirect
 	cloud.google.com/go v0.121.6 // indirect

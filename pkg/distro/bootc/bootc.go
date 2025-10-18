@@ -19,6 +19,7 @@ import (
 	"github.com/osbuild/images/pkg/container"
 	"github.com/osbuild/images/pkg/customizations/anaconda"
 	"github.com/osbuild/images/pkg/customizations/kickstart"
+	"github.com/osbuild/images/pkg/customizations/oscap"
 	"github.com/osbuild/images/pkg/customizations/users"
 	"github.com/osbuild/images/pkg/disk"
 	"github.com/osbuild/images/pkg/distro"
@@ -354,6 +355,17 @@ func (t *BootcImageType) manifestForDisk(bp *blueprint.Blueprint, options distro
 	if imageConfig != nil {
 		img.OSCustomizations.KernelOptionsAppend = imageConfig.KernelOptions
 	}
+
+	osc := customizations.GetOpenSCAP()
+	if osc != nil {
+		defaultOscapDS := oscap.DefaultRHEL9Datastream(true)
+		img.OpenSCAPRemediationConfig, err = oscap.NewConfigs(*osc, &defaultOscapDS)
+		if err != nil {
+			fmt.Println("Error parsing config oscap with: ", err)
+			img.OpenSCAPRemediationConfig = nil
+		}
+	}
+
 	if kopts := customizations.GetKernel(); kopts != nil && kopts.Append != "" {
 		img.OSCustomizations.KernelOptionsAppend = append(img.OSCustomizations.KernelOptionsAppend, kopts.Append)
 	}

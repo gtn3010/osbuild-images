@@ -33,6 +33,7 @@ type OscapConfig struct {
 	VerboseLog   string              `json:"verbose_log,omitempty" toml:"verbose_log,omitempty"`
 	VerboseLevel OscapVerbosityLevel `json:"verbose_level,omitempty" toml:"verbose_level,omitempty"`
 	Compression  bool                `json:"compress_results,omitempty" toml:"compress_results,omitempty"`
+	CustomRemediateScriptPath string `json:"custom_remediate_script_path,omitempty" toml:"custom_remediate_script_path,omitempty"`
 }
 
 func (OscapRemediationStageOptions) isStageOptions() {}
@@ -85,6 +86,7 @@ func NewOscapRemediationStageOptions(dataDir string, options *oscap.RemediationC
 		ProfileID:   options.ProfileID,
 		Datastream:  options.Datastream,
 		Compression: options.CompressionEnabled,
+		CustomRemediateScriptPath: options.CustomRemediateScriptPath,
 	}
 
 	if tc := options.TailoringConfig; tc != nil {
