@@ -17,6 +17,7 @@ import (
 	bibcontainer "github.com/osbuild/images/pkg/bib/container"
 	"github.com/osbuild/images/pkg/bib/osinfo"
 	"github.com/osbuild/images/pkg/container"
+	"github.com/osbuild/images/pkg/customizations/oscap"
 	"github.com/osbuild/images/pkg/customizations/users"
 	"github.com/osbuild/images/pkg/disk"
 	"github.com/osbuild/images/pkg/distro"
@@ -348,6 +349,16 @@ func (t *BootcImageType) Manifest(bp *blueprint.Blueprint, options distro.ImageO
 		// xref https://github.com/CentOS/centos-bootc-layered/blob/main/cloud/usr/lib/bootc/install/05-cloud-kargs.toml
 		"console=tty0",
 		"console=ttyS0",
+	}
+
+	osc := customizations.GetOpenSCAP()
+	if osc != nil {
+		defaultOscapDS := oscap.DefaultRHEL9Datastream(true)
+		img.OpenSCAPRemediationConfig, err = oscap.NewConfigs(*osc, &defaultOscapDS)
+		if err != nil {
+			fmt.Println("Error parsing config oscap with: ", err)
+			img.OpenSCAPRemediationConfig = nil
+		}
 	}
 
 	if kopts := customizations.GetKernel(); kopts != nil && kopts.Append != "" {

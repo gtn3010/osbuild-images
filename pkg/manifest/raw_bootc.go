@@ -9,6 +9,7 @@ import (
 	"github.com/osbuild/images/pkg/artifact"
 	"github.com/osbuild/images/pkg/container"
 	"github.com/osbuild/images/pkg/customizations/fsnode"
+	"github.com/osbuild/images/pkg/customizations/oscap"
 	"github.com/osbuild/images/pkg/customizations/users"
 	"github.com/osbuild/images/pkg/disk"
 	"github.com/osbuild/images/pkg/osbuild"
@@ -52,6 +53,9 @@ type RawBootcImage struct {
 
 	// Source pipeline for files written to raw partitions
 	SourcePipeline string
+
+	OpenSCAPRemediationConfig *oscap.RemediationConfig
+	SELinuxConfig string
 }
 
 func (p RawBootcImage) Filename() string {
@@ -237,6 +241,15 @@ func (p *RawBootcImage) serialize() (osbuild.Pipeline, error) {
 			stage.Devices = devices
 		}
 		pipeline.AddStages(stages...)
+	}
+
+	// Add hardening stage by oscap after bootc install stage.
+	if p.OpenSCAPRemediationConfig != nil {
+		oscapRemediationOpt := osbuild.NewOscapRemediationStageOptions("/opt/hardening-results", p.OpenSCAPRemediationConfig)
+		hardeningStage := osbuild.NewOscapRemediationStage(oscapRemediationOpt)
+		hardeningStage.Mounts = mounts
+		hardeningStage.Devices = devices
+		pipeline.AddStage(hardeningStage)
 	}
 
 	// XXX: maybe go back to adding this conditionally when we stop
