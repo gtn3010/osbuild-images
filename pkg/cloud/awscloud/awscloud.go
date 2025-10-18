@@ -233,7 +233,7 @@ func ec2BootMode(bootMode *platform.BootMode) (ec2types.BootModeValues, error) {
 // The caller can optionally specify the boot mode of the AMI. If the boot
 // mode is not specified, then the instances launched from this AMI use the
 // default boot mode value of the instance type.
-func (a *AWS) Register(name, bucket, key string, tags []AWSTag, shareWith []string, architecture arch.Arch, bootMode *platform.BootMode, importRole *string) (string, string, error) {
+func (a *AWS) Register(name, bucket, key string, tags []AWSTag, shareWith []string, architecture arch.Arch, bootMode *platform.BootMode, importRole string, encrypted bool, kmsKey string) (string, string, error) {
 	rpmArchToEC2Arch := map[arch.Arch]ec2types.ArchitectureValues{
 		arch.ARCH_X86_64:  ec2types.ArchitectureValuesX8664,
 		arch.ARCH_AARCH64: ec2types.ArchitectureValuesArm64,
@@ -251,19 +251,23 @@ func (a *AWS) Register(name, bucket, key string, tags []AWSTag, shareWith []stri
 
 	olog.Printf("[AWS] 📥 Importing snapshot from image: %s/%s", bucket, key)
 	snapshotDescription := fmt.Sprintf("Image Builder AWS Import of %s", name)
-	importTaskOutput, err := a.ec2.ImportSnapshot(
-		context.TODO(),
-		&ec2.ImportSnapshotInput{
+	importTaskInput := &ec2.ImportSnapshotInput{
 			Description: aws.String(snapshotDescription),
 			DiskContainer: &ec2types.SnapshotDiskContainer{
 				UserBucket: &ec2types.UserBucket{
-					S3Bucket: aws.String(bucket),
-					S3Key:    aws.String(key),
+						S3Bucket: aws.String(bucket),
+						S3Key:    aws.String(key),
 				},
 			},
-			RoleName: importRole,
-		},
-	)
+		RoleName: aws.String(importRole),
+	}
+	if encrypted {
+		importTaskInput.Encrypted = aws.Bool(true)
+		if kmsKey != "" {
+			importTaskInput.KmsKeyId = aws.String(kmsKey)
+		}
+	}
+	importTaskOutput, err := a.ec2.ImportSnapshot(context.TODO(), importTaskInput)
 	if err != nil {
 		olog.Printf("[AWS] error importing snapshot: %s", err)
 		return "", "", err
