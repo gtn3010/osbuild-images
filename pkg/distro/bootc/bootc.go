@@ -281,6 +281,8 @@ func (t *BootcImageType) SupportedBlueprintOptions() []string {
 		"customizations.group",
 		"customizations.kernel",
 		"customizations.user",
+		"customizations.openscap",
+		"customizations.selinux_status",
 	}
 }
 func (t *BootcImageType) RequiredBlueprintOptions() []string {
@@ -360,6 +362,8 @@ func (t *BootcImageType) Manifest(bp *blueprint.Blueprint, options distro.ImageO
 			img.OpenSCAPRemediationConfig = nil
 		}
 	}
+
+	img.SELinuxStatus = bp.Customizations.SELinuxStatus
 
 	if kopts := customizations.GetKernel(); kopts != nil && kopts.Append != "" {
 		img.OSCustomizations.KernelOptionsAppend = append(img.OSCustomizations.KernelOptionsAppend, kopts.Append)
