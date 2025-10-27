@@ -55,7 +55,7 @@ type RawBootcImage struct {
 	SourcePipeline string
 
 	OpenSCAPRemediationConfig *oscap.RemediationConfig
-	SELinuxConfig string
+	SELinuxStatus string
 }
 
 func (p RawBootcImage) Filename() string {
@@ -250,6 +250,24 @@ func (p *RawBootcImage) serialize() (osbuild.Pipeline, error) {
 		hardeningStage.Mounts = mounts
 		hardeningStage.Devices = devices
 		pipeline.AddStage(hardeningStage)
+	}
+
+	if p.SELinuxStatus != "" {
+		seLinuxConfOpts := &osbuild.SELinuxConfigStageOptions{}
+		switch p.SELinuxStatus {
+		case "enforcing":
+				seLinuxConfOpts.State = osbuild.SELinuxStateEnforcing
+		case "permissive":
+				seLinuxConfOpts.State = osbuild.SELinuxStatePermissive
+		case "disabled":
+				seLinuxConfOpts.State = osbuild.SELinuxStateDisabled
+		default:
+				seLinuxConfOpts.State = osbuild.SELinuxStateEnforcing
+		}
+		seLinuxConfigStage := osbuild.NewSELinuxConfigStage(seLinuxConfOpts)
+		seLinuxConfigStage.Mounts = mounts
+		seLinuxConfigStage.Devices = devices
+		pipeline.AddStage(seLinuxConfigStage)
 	}
 
 	// XXX: maybe go back to adding this conditionally when we stop
