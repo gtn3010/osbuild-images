@@ -26,6 +26,9 @@ type awsUploader struct {
 	tags       []AWSTag
 	targetArch arch.Arch
 	bootMode   *platform.BootMode
+	importRole string
+	encrypted  bool
+	kmsKey     string
 }
 
 type UploaderOptions struct {
@@ -47,7 +50,7 @@ type awsClient interface {
 	Buckets() ([]string, error)
 	CheckBucketPermission(string, s3types.Permission) (bool, error)
 	UploadFromReader(io.Reader, string, string) (*transfermanager.UploadObjectOutput, error)
-	Register(name, bucket, key string, tags []AWSTag, shareWith []string, architecture arch.Arch, bootMode *platform.BootMode, importRole *string) (string, string, error)
+	Register(name, bucket, key string, tags []AWSTag, shareWith []string, architecture arch.Arch, bootMode *platform.BootMode, importRole string, encrypted bool, kmsKey string) (string, string, error)
 	DeleteObject(string, string) error
 }
 
@@ -55,7 +58,7 @@ var newAwsClient = func(region string, profile string) (awsClient, error) {
 	return NewDefault(region, profile)
 }
 
-func NewUploader(region, bucketName, imageName string, opts *UploaderOptions) (cloud.Uploader, error) {
+func NewUploader(region, bucketName, imageName string, importRole string, encrypted bool, kmsKey string, opts *UploaderOptions) (cloud.Uploader, error) {
 	if opts == nil {
 		opts = &UploaderOptions{}
 	}
@@ -74,6 +77,9 @@ func NewUploader(region, bucketName, imageName string, opts *UploaderOptions) (c
 		tags:       opts.Tags,
 		targetArch: opts.TargetArch,
 		bootMode:   opts.BootMode,
+		importRole: importRole,
+		encrypted:  encrypted,
+		kmsKey:     kmsKey,
 	}, nil
 }
 
@@ -132,7 +138,7 @@ func (au *awsUploader) UploadAndRegister(r io.Reader, _ uint64, status io.Writer
 	}
 
 	fmt.Fprintf(status, "Registering AMI %s\n", au.imageName)
-	ami, snapshot, err := au.client.Register(au.imageName, au.bucketName, keyName, au.tags, nil, au.targetArch, au.bootMode, nil)
+	ami, snapshot, err := au.client.Register(au.imageName, au.bucketName, keyName, au.tags, nil, au.targetArch, au.bootMode, au.importRole, au.encrypted, au.kmsKey)
 	if err != nil {
 		return nil, err
 	}
