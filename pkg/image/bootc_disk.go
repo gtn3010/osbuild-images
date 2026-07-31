@@ -11,6 +11,7 @@ import (
 	"github.com/osbuild/image-builder/pkg/osbuild"
 	"github.com/osbuild/image-builder/pkg/platform"
 	"github.com/osbuild/image-builder/pkg/runner"
+	"github.com/osbuild/images/pkg/customizations/oscap"
 )
 
 type BootcDiskImage struct {
@@ -27,6 +28,9 @@ type BootcDiskImage struct {
 	// Customizations
 	OSCustomizations   manifest.OSCustomizations
 	DiskCustomizations manifest.DiskCustomizations
+
+	OpenSCAPRemediationConfig *oscap.RemediationConfig
+	SELinuxStatus             string
 }
 
 func NewBootcDiskImage(platform platform.Platform, filename string, container container.SourceSpec, buildContainer container.SourceSpec) *BootcDiskImage {
@@ -115,6 +119,8 @@ func (img *BootcDiskImage) InstantiateManifestFromContainers(m *manifest.Manifes
 	rawImage.PartitionTable = img.PartitionTable
 	rawImage.OSCustomizations = img.OSCustomizations
 	rawImage.DiskCustomizations = img.DiskCustomizations
+	rawImage.OpenSCAPRemediationConfig = img.OpenSCAPRemediationConfig
+	rawImage.SELinuxStatus = img.SELinuxStatus
 
 	// In BIB, we export multiple images from the same pipeline so we use the
 	// filename as the basename for each export and set the extensions based on

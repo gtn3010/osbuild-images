@@ -14,6 +14,7 @@ import (
 	"github.com/osbuild/image-builder/pkg/disk"
 	"github.com/osbuild/image-builder/pkg/osbuild"
 	"github.com/osbuild/image-builder/pkg/platform"
+	"github.com/osbuild/images/pkg/customizations/oscap"
 )
 
 // A RawBootcImage represents a raw bootc image file which can be booted in a
@@ -49,6 +50,9 @@ type RawBootcImage struct {
 
 	// DiskCustomizations can influence things in the base OS tree
 	DiskCustomizations DiskCustomizations
+
+	OpenSCAPRemediationConfig *oscap.RemediationConfig
+	SELinuxStatus             string
 
 	inlineData []string
 }
@@ -382,6 +386,34 @@ func (p *RawBootcImage) serialize() (osbuild.Pipeline, error) {
 				}
 			}
 		}
+	}
+
+	// Add hardening stage by oscap after bootc install stage.
+	if p.OpenSCAPRemediationConfig != nil {
+		oscapRemediationOpt := osbuild.NewOscapRemediationStageOptions("/opt/hardening-results", p.OpenSCAPRemediationConfig)
+		hardeningStage := osbuild.NewOscapRemediationStage(oscapRemediationOpt)
+		hardeningStage.Mounts = mounts
+		hardeningStage.Devices = devices
+		pipeline.AddStage(hardeningStage)
+	}
+
+	// Add SeLinux config status stage
+	if p.SELinuxStatus != "" {
+		seLinuxConfOpts := &osbuild.SELinuxConfigStageOptions{}
+		switch p.SELinuxStatus {
+		case "enforcing":
+			seLinuxConfOpts.State = osbuild.SELinuxStateEnforcing
+		case "permissive":
+			seLinuxConfOpts.State = osbuild.SELinuxStatePermissive
+		case "disabled":
+			seLinuxConfOpts.State = osbuild.SELinuxStateDisabled
+		default:
+			seLinuxConfOpts.State = osbuild.SELinuxStateEnforcing
+		}
+		seLinuxConfigStage := osbuild.NewSELinuxConfigStage(seLinuxConfOpts)
+		seLinuxConfigStage.Mounts = mounts
+		seLinuxConfigStage.Devices = devices
+		pipeline.AddStage(seLinuxConfigStage)
 	}
 
 	return pipeline, nil

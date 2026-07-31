@@ -30,6 +30,7 @@ import (
 	"github.com/osbuild/image-builder/pkg/policies"
 	"github.com/osbuild/image-builder/pkg/rpmmd"
 	"github.com/osbuild/image-builder/pkg/runner"
+	"github.com/osbuild/images/pkg/customizations/oscap"
 )
 
 var _ = distro.ImageType(&bootcImageType{})
@@ -308,6 +309,18 @@ func (t *bootcImageType) manifestForDisk(bp *blueprint.Blueprint, options distro
 			img.OSCustomizations.Ignition = ignition.FirstbootOptionsFromBP(*bpIgnitionCustomization.FirstBoot)
 		}
 	}
+
+	osc := customizations.GetOpenSCAP()
+	if osc != nil {
+		defaultOscapDS := oscap.DefaultRHEL9Datastream(true)
+		img.OpenSCAPRemediationConfig, err = oscap.NewConfigs(*osc, &defaultOscapDS)
+		if err != nil {
+			fmt.Println("Error parsing config oscap with: ", err)
+			img.OpenSCAPRemediationConfig = nil
+		}
+	}
+
+	img.SELinuxStatus = bp.Customizations.SELinuxStatus
 
 	mf := manifest.New()
 	mf.Distro = manifest.DISTRO_FEDORA
