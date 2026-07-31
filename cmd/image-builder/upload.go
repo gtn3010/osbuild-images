@@ -174,7 +174,7 @@ func uploaderForCmdAWS(cmd *cobra.Command, targetArchStr string, bootMode *platf
 		Profile:    profile,
 	}
 
-	return awscloudNewUploader(region, bucketName, amiName, opts)
+	return awscloudNewUploader(region, bucketName, imageName, importRole, encrypted, kmsKey, uploaderOpts)
 }
 
 func uploaderForLibvirt(cmd *cobra.Command, targetArchStr string, bootMode *platform.BootMode) (cloud.Uploader, error) {

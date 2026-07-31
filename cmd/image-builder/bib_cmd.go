@@ -99,6 +99,9 @@ func setupBibBuildCmd() *cobra.Command {
 	buildCmd.Flags().String("store", "/store", "osbuild store for intermediate pipeline trees")
 	//TODO: add json progress for higher level tools like "podman bootc"
 	buildCmd.Flags().String("progress", "auto", "type of progress bar to use (e.g. verbose,term)")
+	buildCmd.Flags().String("aws-kms-key", "", "non-default KMS key for encrypting AMI (if enable encryption), support following formats: Key ID, alias, arn")
+	buildCmd.Flags().String("aws-custom-import-role", "", "aws iam role for importing snapshot to create AMI. Default: vmimport")
+	buildCmd.Flags().Bool("aws-encrypt-snapshot", false, "enable encryption for AMI")
 
 	buildCmd.MarkFlagsRequiredTogether("aws-region", "aws-bucket", "aws-ami-name")
 
