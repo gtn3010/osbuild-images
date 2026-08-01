@@ -102,6 +102,7 @@ func setupBibBuildCmd() *cobra.Command {
 	buildCmd.Flags().String("aws-kms-key", "", "non-default KMS key for encrypting AMI (if enable encryption), support following formats: Key ID, alias, arn")
 	buildCmd.Flags().String("aws-custom-import-role", "", "aws iam role for importing snapshot to create AMI. Default: vmimport")
 	buildCmd.Flags().Bool("aws-encrypt-snapshot", false, "enable encryption for AMI")
+	buildCmd.Flags().StringArray("aws-ami-tag", []string{"base-image:rhel10/rhel-bootc"}, "tags of AMI in aws (format key:value), support adding multiple tags")
 
 	buildCmd.MarkFlagsRequiredTogether("aws-region", "aws-bucket", "aws-ami-name")
 

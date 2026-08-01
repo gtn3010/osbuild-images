@@ -119,6 +119,18 @@ func uploaderForCmdAWS(cmd *cobra.Command, targetArchStr string, bootMode *platf
 	if err != nil {
 		return nil, err
 	}
+	importRole, err := cmd.Flags().GetString("aws-import-role")
+	if err != nil {
+		return nil, err
+	}
+	encrypted, err := cmd.Flags().GetBool("aws-snapshot-encrypted")
+	if err != nil {
+		return nil, err
+	}
+	kmsKey, err := cmd.Flags().GetString("aws-kms-key")
+	if err != nil {
+		return nil, err
+	}
 	tags, err := cmd.Flags().GetStringArray("aws-tag")
 	if err != nil {
 		return nil, err
@@ -174,7 +186,7 @@ func uploaderForCmdAWS(cmd *cobra.Command, targetArchStr string, bootMode *platf
 		Profile:    profile,
 	}
 
-	return awscloudNewUploader(region, bucketName, imageName, importRole, encrypted, kmsKey, uploaderOpts)
+	return awscloudNewUploader(region, bucketName, amiName, importRole, encrypted, kmsKey, opts)
 }
 
 func uploaderForLibvirt(cmd *cobra.Command, targetArchStr string, bootMode *platform.BootMode) (cloud.Uploader, error) {

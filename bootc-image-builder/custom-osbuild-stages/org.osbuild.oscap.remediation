@@ -1,0 +1,214 @@
+#!/usr/bin/python3
+import os
+import subprocess
+import sys
+
+import osbuild.api
+from osbuild.util import mnt
+
+DATA_DIR = "/root"
+XCCDF_RESULTS = "oscap_eval_xccdf_results.xml"
+REMEDIATION_SCRIPT = "oscap_remediation.bash"
+
+
+def setup_env(tree):
+    for source in ("/dev", "/proc"):
+        target = os.path.join(tree, source.lstrip("/"))
+        os.makedirs(target, exist_ok=True)
+        mnt.mount(source, target, ro=False)
+    os.symlink("/proc/self/fd", f"{tree}/dev/fd")
+
+
+# pylint: disable=too-many-statements,too-many-branches
+def main(tree, options):
+    # required vars
+    config = options["config"]
+    profile_id = config["profile_id"]
+    datastream = config["datastream"]
+    # optional vars
+    xccdf_id = config.get("xccdf_id")
+    data_dir = options.get("data_dir", DATA_DIR)
+    ds_id = config.get("datastream_id")
+    tailoring = config.get("tailoring")
+    arf_results = config.get("arf_results", config.get("xml_results"))
+    xccdf_results = config.get("xccdf_results", XCCDF_RESULTS)
+    html_report = config.get("html_report")
+    verbose_log = config.get("verbose_log")
+    verbose_level = config.get("verbose_level", "INFO" if verbose_log is not None else None)
+    compress_results = config.get("compress_results", False)
+    custom_remediate_script_path = config.get("custom_remediate_script_path", "")
+
+    data_dir = data_dir.lstrip('/')
+    os.makedirs(f"{tree}/{data_dir}", exist_ok=True)
+
+    setup_env(tree)
+
+    # build common data stream-related args list
+    ds_args = ["--profile", profile_id]
+    if ds_id is not None:
+        ds_args.extend(["--datastream-id", ds_id])
+    if xccdf_id is not None:
+        ds_args.extend(["--xccdf-id", xccdf_id])
+    if tailoring is not None:
+        ds_args.extend(["--tailoring-file", tailoring])
+
+    # run openscap in chroot on the image tree (scan)
+    cmd = [
+        "/usr/sbin/chroot", tree,
+        "/usr/bin/oscap",
+        "xccdf", "eval"
+    ]
+
+    if verbose_level is not None:
+        cmd.extend(["--verbose", verbose_level])
+    if verbose_log is not None:
+        cmd.extend(["--verbose-log-file", f"{data_dir}/{verbose_log}.eval"])
+
+    cmd.extend(ds_args)
+
+    if arf_results is not None:
+        # run with command in chroot so full path ok
+        cmd.extend(["--results-arf", f"{data_dir}/{arf_results}"])
+
+    cmd.extend(["--results", f"{data_dir}/{xccdf_results}"])
+    cmd.append(datastream)
+
+    print("OpenSCAP (evaluate): ", repr(cmd))
+    # we need to
+    # 1) inform the scanner that the system is offline (OSCAP_PROBE_ROOT="")
+    # the variable will make OVAL probes to be less affected by the absence
+    # of dynamic things like /proc /dev etc and also will define the path prefix
+    # (we keep it empty since our process is already chrooted into the image filesystem)
+    # 2) provide important environment variables in OSCAP_CONTAINER_VARS as
+    # the probe does not have access to /proc
+    res = subprocess.run(cmd, encoding="utf8", stdout=sys.stderr, check=False,
+                         env=dict(os.environ,
+                                  OSCAP_PROBE_ROOT="",
+                                  OSCAP_CONTAINER_VARS="container=bwrap-osbuild"))
+
+    # oscap return values are:
+    # 0 → success
+    # 2 → no error, but some checks/remediation failed
+    if res.returncode not in (0, 2):
+        raise RuntimeError("oscap content evaluation failed")
+
+    # run openscap in chroot on the image tree (generate remediation script)
+    cmd = [
+        "/usr/sbin/chroot", tree,
+        "/usr/bin/oscap",
+        "xccdf", "generate", "fix"
+    ]
+
+    if verbose_level is not None:
+        cmd.extend(["--verbose", verbose_level])
+    if verbose_log is not None:
+        cmd.extend(["--verbose-log-file", f"{data_dir}/{verbose_log}.generate-fix"])
+
+    cmd.extend(ds_args)
+
+    cmd.extend(["--fix-type", "bash",
+                "--output", f"{data_dir}/{REMEDIATION_SCRIPT}"])
+    cmd.append(f"{data_dir}/{xccdf_results}")
+
+    print("OpenSCAP (generate remediation): ", repr(cmd))
+    res = subprocess.run(cmd, encoding="utf8", stdout=sys.stderr, check=False)
+
+    if res.returncode not in (0, 2):
+        raise RuntimeError("oscap failed to generate remediation script")
+
+    # run the remediation script
+    cmd = [
+        "/usr/sbin/chroot", tree,
+        "/usr/bin/bash",
+        f"{data_dir}/{REMEDIATION_SCRIPT}"
+    ]
+
+    log = None
+    if verbose_log is not None:
+        log = open(f"{tree}/{data_dir}/{verbose_log}.remediation", "w", encoding="utf8")
+
+    print("OpenSCAP remediation script cmd: ", repr(cmd))
+    res = subprocess.run(cmd, encoding="utf8", stdout=sys.stderr, stderr=log, check=False)
+
+    if log is not None:
+        log.close()
+
+    # Copy custom remediate script from workspace to insternal osbuild tree path, the chroot and execute the remediate script.
+    if custom_remediate_script_path != "":
+        script_name = custom_remediate_script_path.split("/")[-1]
+        pre_cmd = [
+            "cp", custom_remediate_script_path, f"{tree}/opt/{script_name}"
+        ]
+        cmd = [
+            "/usr/sbin/chroot", tree, f"/opt/{script_name}"
+        ]
+        clear_cmd = [
+            "rm", "-rf", f"{tree}/opt/{script_name}"
+        ]
+
+        print("Copy the custom remediate script from mounted /run/osbuild/lib: ", repr(pre_cmd))
+        subprocess.run(pre_cmd, encoding="utf8", stdout=sys.stderr, check=False)
+
+        print("Running the custom remediate script: ", repr(cmd))
+        res = subprocess.run(cmd, encoding="utf8", stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        print("Output when running the custom remediate script: ", res.stdout)
+        if res.returncode not in (0, 2):
+            print("Error when running custom remediate script: ", res.stderr)
+            raise RuntimeError("Failed to run custom remediate script")
+        else:
+            print("Clear custom remediate script path: ", repr(clear_cmd))
+            subprocess.run(clear_cmd, encoding="utf8", stdout=sys.stderr, check=False)
+
+    # run openscap in chroot on the remediated image tree to generate final report
+    if html_report is not None:
+        cmd = [
+            "/usr/sbin/chroot", tree,
+            "/usr/bin/oscap",
+            "xccdf", "eval"
+        ]
+
+        if verbose_level is not None:
+            cmd.extend(["--verbose", verbose_level])
+        if verbose_log is not None:
+            cmd.extend(["--verbose-log-file", f"{data_dir}/{verbose_log}.eval-remediated"])
+
+        # currently the xmlsec might become broken because of certain
+        # encryption policies enforced during the system hardening,
+        # but we can skip this step for the second run
+        cmd.extend(["--skip-signature-validation"])
+
+        cmd.extend(ds_args)
+
+        cmd.extend(["--report", f"{data_dir}/{html_report}"])
+        cmd.append(datastream)
+
+        print("OpenSCAP (re-evaluate remediated): ", repr(cmd))
+        res = subprocess.run(cmd, encoding="utf8", stdout=sys.stderr, check=False,
+                             env=dict(os.environ,
+                                      OSCAP_PROBE_ROOT="",
+                                      OSCAP_CONTAINER_VARS="container=bwrap-osbuild"))
+
+        if res.returncode not in (0, 2):
+            raise RuntimeError("oscap content re-evaluation failed")
+
+    # pack result files, it could save dozens of megabytes
+    if compress_results:
+        cmd = [
+            "xz"
+        ]
+
+        if arf_results is not None:
+            cmd.extend([f"{tree}/{data_dir}/{arf_results}"])
+
+        cmd.extend([f"{tree}/{data_dir}/{xccdf_results}"])
+
+        print("Pack the result files: ", repr(cmd))
+        res = subprocess.run(cmd, encoding="utf8", stdout=sys.stderr, check=False)
+
+    return 0
+
+
+if __name__ == "__main__":
+    args = osbuild.api.arguments()
+    r = main(args["tree"], args["options"])
+    sys.exit(r)

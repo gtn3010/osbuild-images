@@ -252,6 +252,7 @@ func handleAWSFlags(cmd *cobra.Command) (cloud.Uploader, error) {
 	importRole, _ := cmd.Flags().GetString("aws-import-role")
 	encrypted, _ := cmd.Flags().GetBool("aws-snapshot-encrypted")
 	kmsKey, _ := cmd.Flags().GetString("aws-kms-key")
+	tags, _ := cmd.Flags().GetStringArray("aws-tag")
 
 	if !slices.Contains(imgTypes, "ami") {
 		return nil, fmt.Errorf("aws flags set for non-ami image type (type is set to %s)", strings.Join(imgTypes, ","))
@@ -268,6 +269,18 @@ func handleAWSFlags(cmd *cobra.Command) (cloud.Uploader, error) {
 	uploaderOpts := &awscloud.UploaderOptions{
 		TargetArch: targetArch,
 	}
+	var slicedTags []awscloud.AWSTag
+	for _, tag := range tags {
+		parts := strings.SplitN(tag, "=", 2)
+		if len(parts) < 2 {
+			return nil, fmt.Errorf("Invalid tag format: %s (expected key=value)", tag)
+		}
+		slicedTags = append(slicedTags, awscloud.AWSTag{
+			Name:  parts[0],
+			Value: parts[1],
+		})
+	}
+	uploaderOpts.Tags = slicedTags
 	uploader, err := awscloudNewUploader(region, bucketName, imageName, importRole, encrypted, kmsKey, uploaderOpts)
 	if err != nil {
 		return nil, err

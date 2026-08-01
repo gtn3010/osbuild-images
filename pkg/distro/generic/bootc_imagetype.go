@@ -15,6 +15,7 @@ import (
 	"github.com/osbuild/image-builder/pkg/customizations/anaconda"
 	"github.com/osbuild/image-builder/pkg/customizations/ignition"
 	"github.com/osbuild/image-builder/pkg/customizations/kickstart"
+	"github.com/osbuild/image-builder/pkg/customizations/oscap"
 	"github.com/osbuild/image-builder/pkg/customizations/users"
 	"github.com/osbuild/image-builder/pkg/datasizes"
 	"github.com/osbuild/image-builder/pkg/disk"
@@ -30,7 +31,6 @@ import (
 	"github.com/osbuild/image-builder/pkg/policies"
 	"github.com/osbuild/image-builder/pkg/rpmmd"
 	"github.com/osbuild/image-builder/pkg/runner"
-	"github.com/osbuild/images/pkg/customizations/oscap"
 )
 
 var _ = distro.ImageType(&bootcImageType{})
@@ -312,7 +312,7 @@ func (t *bootcImageType) manifestForDisk(bp *blueprint.Blueprint, options distro
 
 	osc := customizations.GetOpenSCAP()
 	if osc != nil {
-		defaultOscapDS := oscap.DefaultRHEL9Datastream(true)
+		defaultOscapDS := "/usr/share/xml/scap/ssg/content/ssg-rhel10-ds.xml" // hardcode default datastream to rhel10
 		img.OpenSCAPRemediationConfig, err = oscap.NewConfigs(*osc, &defaultOscapDS)
 		if err != nil {
 			fmt.Println("Error parsing config oscap with: ", err)
