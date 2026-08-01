@@ -1,5 +1,5 @@
 ARG BUILDERIMAGE="golang:1.25.3"
-ARG BASEIMAGE="registry.redhat.io/rhel10/bootc-image-builder:10.2-1777553577"
+ARG BASEIMAGE="registry.redhat.io/rhel10/bootc-image-builder:10.2-1785716433"
 
 FROM $BUILDERIMAGE as builder
 
@@ -18,7 +18,7 @@ RUN mkdir /blueprint && git clone https://github.com/gtn3010/blueprint.git --dep
 FROM $BASEIMAGE as base
 COPY custom-osbuild-stages/org.osbuild.oscap.remediation /usr/lib/osbuild/stages/org.osbuild.oscap.remediation
 COPY custom-osbuild-stages/org.osbuild.oscap.remediation.meta.json /usr/lib/osbuild/stages/org.osbuild.oscap.remediation.meta.json
-RUN dnf install -y libxcrypt-compat zip && \
+RUN dnf install -y libxcrypt-compat zip openssl && \
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
     unzip awscliv2.zip && \
     ./aws/install

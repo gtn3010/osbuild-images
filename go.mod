@@ -54,6 +54,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
+replace github.com/osbuild/blueprint => /blueprint
+
 require (
 	cel.dev/expr v0.25.1 // indirect
 	cloud.google.com/go v0.121.6 // indirect
